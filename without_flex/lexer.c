@@ -131,10 +131,43 @@ Token *proximo_token(FILE *file) {
     token.line = current_line;
     token.column = start_column;
     return &token;
+  }// Operadores de pontuação
+  else if (strchr("-;,", buffer[buffer_pos])) {
+    token.value[0] = buffer[buffer_pos++];
+    token.type = TOKEN_PUNCTUATION;
+    // verifica se é o sinal de declaracao ->
+    if (buffer_pos < buffer_len && strchr(">", buffer[buffer_pos])) {
+      token.value[1] = buffer[buffer_pos++];
+      current_column++;
+      token.value[2] = '\0';
+    } else {
+      token.value[1] = '\0';
+    }
+
+    switch (token.value[0]) {
+    case '-':
+      if (token.value[1] == '>') {
+        token.pontuacao = DECLARATION;
+      }
+      break;
+
+    case ';':
+      token.pontuacao = END_EXP;
+      break;
+
+    case ',':
+      token.pontuacao = MUL_VARS;
+      break;
+    }
+
+    token.line = current_line;
+    token.column = start_column;
+    return &token;
   }
   // Operadores aritméticos
   else if (strchr("+-*/^()", buffer[buffer_pos])) {
     token.value[0] = buffer[buffer_pos++];
+    token.value[1] = '\0';
     current_column++;
     token.type = TOKEN_OPERATOR;
 
@@ -208,38 +241,6 @@ Token *proximo_token(FILE *file) {
       break;
     case '=':
       token.pontuacao = ASSIGMENT;
-    }
-
-    token.line = current_line;
-    token.column = start_column;
-    return &token;
-    // Tokens de pontuação
-  } else if (strchr("-;,", buffer[buffer_pos])) {
-    token.value[0] = buffer[buffer_pos++];
-    token.type = TOKEN_PUNCTUATION;
-    // verifica se é o sinal de declaracao ->
-    if (buffer_pos < buffer_len && strchr(">", buffer[buffer_pos])) {
-      token.value[1] = buffer[buffer_pos++];
-      current_column++;
-      token.value[2] = '\0';
-    } else {
-      token.value[1] = '\0';
-    }
-
-    switch (token.value[0]) {
-    case '-':
-      if (token.value[1] == '>') {
-        token.pontuacao = DECLARATION;
-      }
-      break;
-
-    case ';':
-      token.pontuacao = END_EXP;
-      break;
-
-    case ',':
-      token.pontuacao = MUL_VARS;
-      break;
     }
 
     token.line = current_line;

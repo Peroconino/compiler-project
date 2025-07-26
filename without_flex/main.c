@@ -1,3 +1,4 @@
+#include "errors.h"
 #include "lexer.h"
 #include "stdio.h"
 #include <stddef.h>
@@ -5,9 +6,9 @@
 #define TAMANHO 200
 
 int main() {
-  FILE *file = fopen("entrada.txt", "r");
+  FILE *file = fopen(ARQUIVO, "r");
   if (!file) {
-    perror("Erro ao abrir arquivo");
+    printf("Erro ao abrir arquivo");
     return 1;
   }
 
@@ -15,9 +16,11 @@ int main() {
   reload_buffer(file);
 
   Token *token;
-  while ((token = proximo_token(file))->type != TOKEN_EOF) {
+  while (token->type != TOKEN_EOF) {
+    token = proximo_token(file);
     printf("Token: %d, Valor: '%s', Linha: %d, Coluna: %d\n", token->type,
            token->value, token->line, token->column);
+    trata_erros(token);
   }
 
   fclose(file);
