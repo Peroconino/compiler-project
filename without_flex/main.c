@@ -15,13 +15,14 @@ int main() {
   // Carrega o buffer inicial
   reload_buffer(file);
 
-  Token *token;
-  while (token->type != TOKEN_EOF) {
-    token = proximo_token(file);
+  Token *token = proximo_token(file);
+  while (token->type != TOKEN_EOF && token->type != TOKEN_ERROR) {
     printf("Token: %d, Valor: '%s', Linha: %d, Coluna: %d\n", token->type,
            token->value, token->line, token->column);
-    trata_erros(token);
+    token = proximo_token(file);
   }
+
+  trata_erros(token);
 
   fclose(file);
   return 0;
