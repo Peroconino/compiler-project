@@ -354,8 +354,8 @@ Token *proximo_token(FILE *file) {
   token.value[0] = buffer[buffer_pos++];
   token.value[1] = '\0';
   token.type = TOKEN_ERROR;
+  current_column++; 
   token.line = current_line;
   token.column = current_column;
-  current_column++;
   return &token;
 }

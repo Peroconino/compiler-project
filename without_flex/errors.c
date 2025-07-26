@@ -6,5 +6,7 @@ void trata_erros (Token * tok) {
         return;
     }
 
-    printf("\nErro na linha %d, coluna %d", tok->line, tok->column);
+    printf("Erro na linha %d, coluna %d:", tok->line, tok->column);
+    printf("\nToken.type: %d",tok->type);
+    printf("\nToken.value: %s\n", tok->value);
 }
