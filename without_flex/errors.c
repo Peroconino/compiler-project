@@ -1,39 +1,56 @@
-#include "lexer.h"
+#include "errors.h"
 #include <stdio.h>
+#include <string.h>
 
-void trata_erros(Token *tok) {
-  if (tok->type != TOKEN_ERROR) {
-    return;
-  }
+void trata_erros(Token* tok) {
+    if (tok->type != TOKEN_ERROR) {
+        return;
+    }
 
-  printf("Erro na linha %d, coluna %d:", tok->line, tok->column);
-  printf("\nToken.value: %s\n", tok->value);
-  switch (tok->error) {
-    case UNCLOSED_COMMENT:
-      printf("Comentário nunca é fechado. Era esperado '*/'(fechamento de "
-             "comentário).");
-      break;
+    printf("\nErro léxico na linha %d, coluna %d: ", tok->line, tok->column);
 
-    case INVALID_TOKEN_AFTER_EXCLAMATION:
-      printf("Token inesperado. Era esperado '='(igual) após.");
-      break;
+    // Diagnóstico detalhado por ErrorKind
+    switch (tok->error) {
+        case UNCLOSED_COMMENT:
+            printf("Comentário nunca é fechado. Era esperado '*/'.\n");
+            return;
+        case INVALID_TOKEN_AFTER_EXCLAMATION:
+            printf("Operador '!' inválido. Você quis dizer '!='?\n");
+            return;
+        case FRACTION_ENDED_WITH_A_DOT:
+            printf("Número mal formatado: parte fracionária terminou com ponto.\n");
+            return;
+        case ENDED_WITH_E_EXPOENT:
+            printf("Expoente terminou com 'e'. Era esperado a continuação da notação científica.\n");
+            return;
+        case ENDED_AFTER_EXPOENT_SIGN:
+            printf("Expoente terminou com '+' ou '-'. Era esperado dígitos após o sinal.\n");
+            return;
+        case UNKNOWN_TOKEN:
+            printf("Token não reconhecido pela linguagem: '%s'\n", tok->value);
+            return;
+        case NO_ERROR_KIND:
+        default:
+            break;
+    }
 
-    case FRACTION_ENDED_WITH_A_DOT:
-      printf("Parte fracionaria terminou com um ponto. Era esperado digitos "
-             "decimais.");
-      break;
-    case ENDED_WITH_E_EXPOENT:
-      printf("Expoente terminou com 'e'. Era esperado a continuação da notação "
-             "científica. Exemplos: e12, E-7, e+42.");
-      break;
-    case ENDED_AFTER_EXPOENT_SIGN:
-      printf("Exponte terminou com '+' ou '-'. Era esperado a continuação da "
-             "notação científica. Exemplos: e12, E-7, e+42.");
-      break;
-      break;
-    case UNKNOWN_TOKEN:
-      printf("Token não reconhecido pela linguagem.");
-      break;
-  }
-  printf("\n");
+    // Diagnóstico extra por valor do token (versão 2)
+    if (strlen(tok->value) == 1) {
+        switch (tok->value[0]) {
+            case '!':
+                printf("Operador '!' inválido. Você quis dizer '!='?\n");
+                break;
+            case '.':
+                printf("Número mal formatado ou ponto inesperado\n");
+                break;
+            default:
+                printf("Caractere inválido '%c'\n", tok->value[0]);
+        }
+    } else if (strchr(tok->value, '.')) {
+        printf("Número mal formatado: '%s'\n", tok->value);
+    } else if (strchr(tok->value, 'e') || strchr(tok->value, 'E')) {
+        printf("Notação científica mal formatada: '%s'\n", tok->value);
+    } else {
+        printf("Token inválido: '%s'\n", tok->value);
+    }
 }

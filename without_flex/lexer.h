@@ -34,6 +34,7 @@ typedef enum {
 } Operator;
 
 typedef enum {
+  UNDEFINED,
   CHAR,
   INT,
   FLOAT,
@@ -53,6 +54,7 @@ typedef enum {
   ENDED_WITH_E_EXPOENT,
   ENDED_AFTER_EXPOENT_SIGN,
   UNKNOWN_TOKEN,
+  NO_ERROR_KIND
 } ErrorKind;
 
 typedef struct {
@@ -66,7 +68,7 @@ typedef struct {
   int column;
 } Token;
 
-// Declaração da função do lexer
 Token *proximo_token(FILE *file);
 int reload_buffer(FILE *file);
+
 #endif

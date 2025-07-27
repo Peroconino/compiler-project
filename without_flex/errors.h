@@ -2,6 +2,6 @@
 #define ERRORS_H
 #include "lexer.h"
 
-void trata_erros(Token * tok);
+void trata_erros(Token *tok);
 
 #endif
