@@ -1,7 +1,7 @@
+#include "lexer.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
-#include "lexer.h"
 
 #define BUFFER_SIZE 200
 
@@ -27,7 +27,7 @@ Token *proximo_token(FILE *file) {
   token.operador = -1;
   token.pontuacao = -1;
   token.relop = -1;
-
+  token.error = -1;
   // Recarrega o buffer se necessário
   if (buffer_pos >= buffer_len) {
     if (!reload_buffer(file)) {
@@ -74,6 +74,7 @@ Token *proximo_token(FILE *file) {
           if (!reload_buffer(file)) {
             // Comentário não fechado até o final do arquivo
             token.type = TOKEN_ERROR;
+            token.error = UNCLOSED_COMMENT;
             token.line = current_line;
             token.column = start_column;
             return &token;
@@ -131,7 +132,7 @@ Token *proximo_token(FILE *file) {
     token.line = current_line;
     token.column = start_column;
     return &token;
-  }// Operadores de pontuação
+  } // Operadores de pontuação
   else if (strchr("-;,", buffer[buffer_pos])) {
     token.value[0] = buffer[buffer_pos++];
     token.type = TOKEN_PUNCTUATION;
@@ -237,6 +238,7 @@ Token *proximo_token(FILE *file) {
         token.relop = NE;
       } else {
         token.type = TOKEN_ERROR;
+        token.error = INVALID_TOKEN_AFTER_EXCLAMATION;
       }
       break;
     case '=':
@@ -274,6 +276,7 @@ Token *proximo_token(FILE *file) {
         if (!reload_buffer(file)) {
           // Tratar erro: número terminou com ponto
           token.type = TOKEN_ERROR;
+          token.error = FRACTION_ENDED_WITH_A_DOT;
           return &token;
         }
       }
@@ -282,6 +285,7 @@ Token *proximo_token(FILE *file) {
       if (!isdigit(buffer[buffer_pos])) {
         // Tratar erro: faltam dígitos após o ponto
         token.type = TOKEN_ERROR;
+        token.error = FRACTION_ENDED_WITH_A_DOT;
         return &token;
       }
 
@@ -306,6 +310,7 @@ Token *proximo_token(FILE *file) {
         if (!reload_buffer(file)) {
           // Tratar erro: número terminou com 'e'
           token.type = TOKEN_ERROR;
+          token.error = ENDED_WITH_E_EXPOENT;
           return &token;
         }
       }
@@ -319,6 +324,7 @@ Token *proximo_token(FILE *file) {
           if (!reload_buffer(file)) {
             // Tratar erro: número terminou após sinal do expoente
             token.type = TOKEN_ERROR;
+            token.error = ENDED_AFTER_EXPOENT_SIGN;
             return &token;
           }
         }
@@ -328,6 +334,7 @@ Token *proximo_token(FILE *file) {
       if (!isdigit(buffer[buffer_pos])) {
         // Tratar erro: faltam dígitos no expoente
         token.type = TOKEN_ERROR;
+        token.error = ENDED_AFTER_EXPOENT_SIGN;
         return &token;
       }
 
@@ -354,7 +361,8 @@ Token *proximo_token(FILE *file) {
   token.value[0] = buffer[buffer_pos++];
   token.value[1] = '\0';
   token.type = TOKEN_ERROR;
-  current_column++; 
+  token.error = UNKNOWN_TOKEN;
+  current_column++;
   token.line = current_line;
   token.column = current_column;
   return &token;

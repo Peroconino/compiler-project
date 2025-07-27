@@ -46,12 +46,22 @@ typedef enum {
   DECLARATION,
 } Punctuation;
 
+typedef enum {
+  UNCLOSED_COMMENT,
+  INVALID_TOKEN_AFTER_EXCLAMATION,
+  FRACTION_ENDED_WITH_A_DOT,
+  ENDED_WITH_E_EXPOENT,
+  ENDED_AFTER_EXPOENT_SIGN,
+  UNKNOWN_TOKEN,
+} ErrorKind;
+
 typedef struct {
   TokenType type;
   char value[50];
   Operator operador;
   Punctuation pontuacao;
   Relop relop;
+  ErrorKind error;
   int line;
   int column;
 } Token;
