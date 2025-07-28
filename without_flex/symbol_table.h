@@ -33,4 +33,4 @@ void print_symbol_table();
 void set_symbol_type(const char* lexeme, Type type);
 bool set_symbol_value(const char* lexeme, const char* value_str);
 
-#endif // SYMBOL_TABLE_H_INCLUDED
+#endif

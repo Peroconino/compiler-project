@@ -37,7 +37,7 @@ Token *proximo_token(FILE *file) {
   token.operador = -1;
   token.pontuacao = -1;
   token.relop = -1;
-  token.error = NO_ERROR_KIND;
+  token.error = -1;
 
   if (buffer_pos >= buffer_len) {
     if (!reload_buffer(file)) {

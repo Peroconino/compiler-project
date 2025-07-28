@@ -54,7 +54,6 @@ typedef enum {
   ENDED_WITH_E_EXPOENT,
   ENDED_AFTER_EXPOENT_SIGN,
   UNKNOWN_TOKEN,
-  NO_ERROR_KIND
 } ErrorKind;
 
 typedef struct {
