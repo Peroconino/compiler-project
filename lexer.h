@@ -1,7 +1,9 @@
 #ifndef LEXER_H
 #define LEXER_H
-
 #include <stdio.h>
+#define ARQUIVO "entrada.txt"
+#define MAX_LEXEME_LENGTH 50
+#define BUFFER_SIZE 4096
 
 typedef enum {
   TOKEN_ID,
@@ -24,7 +26,7 @@ typedef enum {
 } Relop;
 
 typedef enum {
-  SOMA,
+  SUM,
   SUB,
   MULT,
   DIV,
@@ -34,7 +36,6 @@ typedef enum {
 } Operator;
 
 typedef enum {
-  UNDEFINED,
   CHAR,
   INT,
   FLOAT,
@@ -45,7 +46,22 @@ typedef enum {
   MUL_VARS,
   END_EXP,
   DECLARATION,
+  APOSTROPHE,
+  DOT,
 } Punctuation;
+
+typedef enum {
+  IF,
+  THEN,
+  ELSE,
+  WHILE,
+  DO,
+  MAIN,
+  BEGIN,
+  END,
+  REPEAT,
+  UNTIL,
+} Keyword;
 
 typedef enum {
   UNCLOSED_COMMENT,
@@ -58,8 +74,10 @@ typedef enum {
 
 typedef struct {
   TokenType type;
-  char value[50];
+  char value[MAX_LEXEME_LENGTH];
   Operator operador;
+  Keyword keyword;
+  Type numberType;
   Punctuation pontuacao;
   Relop relop;
   ErrorKind error;

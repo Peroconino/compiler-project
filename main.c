@@ -4,8 +4,6 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#define ARQUIVO "entrada.txt"
-
 int main() {
   FILE *file = fopen(ARQUIVO, "r");
   if (!file) {

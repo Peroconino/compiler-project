@@ -3,8 +3,6 @@
 #include <string.h>
 #include "lexer.h"
 
-#define BUFFER_SIZE 200
-
 char buffer[BUFFER_SIZE + 1];
 size_t buffer_pos = 0;
 size_t buffer_len = 0;
