@@ -85,7 +85,24 @@ typedef struct {
   int column;
 } Token;
 
+typedef struct {
+  const char *value;
+  Keyword keyword;
+} KeywordEntry;
+
 Token *proximo_token(FILE *file);
 int reload_buffer(FILE *file);
+int estado_inicial();
+int final(int state);
+void load_buffer(char *buffer);
+void init_state(FILE *file);
+char prox_char();
+char peek_char();
+Keyword get_keyword_type(const char *lexeme);
+Token *acoes(int s);
+int getCharClass(char c);
+int move(int state, char c);
+void ignore_spaces_and_comentaries();
+Token *getNextToken();
 
 #endif
