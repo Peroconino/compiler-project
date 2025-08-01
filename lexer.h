@@ -64,6 +64,7 @@ typedef enum {
 } Keyword;
 
 typedef enum {
+  UNDEFINED = -1,
   UNCLOSED_COMMENT,
   INVALID_TOKEN_AFTER_EXCLAMATION,
   FRACTION_ENDED_WITH_A_DOT,
@@ -75,12 +76,14 @@ typedef enum {
 typedef struct {
   TokenType type;
   char value[MAX_LEXEME_LENGTH];
-  Operator operador;
-  Keyword keyword;
-  Type numberType;
-  Punctuation pontuacao;
-  Relop relop;
-  ErrorKind error;
+  union {
+    Operator operador;
+    Keyword keyword;
+    Type numberType;
+    Punctuation pontuacao;
+    Relop relop;
+    ErrorKind error;
+  };
   int line;
   int column;
 } Token;

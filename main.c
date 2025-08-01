@@ -16,12 +16,11 @@ int main() {
   printf("Análise Léxica:\n");
   printf("----------------\n");
 
+  printf("<TOKEN_TYPE, LEXEME>\n");
   do {
     token = getNextToken();
-    printf("<TOKEN_TYPE, LEXEME>\n");
-    printf("<%d, %s>\n",token->type, token->value);
-  } while (token->type != TOKEN_EOF || token->type != TOKEN_ERROR);
-
+    printf("<%d, %s>\n", token->type, token->value);
+  } while (token->type != TOKEN_EOF && token->type != TOKEN_ERROR);
   fclose(input);
   return 0;
 }
