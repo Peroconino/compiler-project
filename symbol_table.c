@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h> // Adicionado para corrigir o aviso sobre isprint
 
 SymbolTable symbol_table;
 
@@ -10,7 +11,7 @@ void init_symbol_table() { symbol_table.size = 0; }
 SymbolEntry *insert_symbol(const char *lexeme, TokenType type, int line,
                            int column) {
   if (symbol_table.size >= MAX_SYMBOLS) {
-    printf("Erro: Tabela de s�mbolos cheia\n");
+    printf("Erro: Tabela de símbolos cheia\n");
     return NULL;
   }
   SymbolEntry *entry = &symbol_table.entries[symbol_table.size++];
@@ -20,12 +21,17 @@ SymbolEntry *insert_symbol(const char *lexeme, TokenType type, int line,
   entry->has_value = false;
   entry->line = line;
   entry->column = column;
-  entry->data_type = UNDEFINED;
+  entry->data_type = UNDEFINED; // Inicializa como indefinido
 
+  // Se for um número, já define o tipo e valor
   if (type == TOKEN_NUMBER) {
-    if (strchr(lexeme, '.')) {
+    if (strchr(lexeme, '.') || strchr(lexeme, 'e') || strchr(lexeme, 'E')) {
       entry->value.float_value = atof(lexeme);
       entry->data_type = FLOAT;
+    } else if (strlen(lexeme) == 1 && isprint(lexeme[0]) && !isdigit(lexeme[0])) {
+      // Trata como CHAR apenas se for um caractere imprimível que não seja um dígito
+      entry->value.char_value = lexeme[0];
+      entry->data_type = CHAR;
     } else {
       entry->value.int_value = atoi(lexeme);
       entry->data_type = INT;
@@ -51,33 +57,14 @@ void set_symbol_type(const char *lexeme, Type type) {
   }
 }
 
-bool set_symbol_value(const char *lexeme, const char *value_str) {
-  SymbolEntry *entry = lookup_symbol(lexeme);
-  if (entry == NULL)
-    return false;
-  switch (entry->data_type) {
-  case INT:
-    entry->value.int_value = atoi(value_str);
-    break;
-  case FLOAT:
-    entry->value.float_value = atof(value_str);
-    break;
-  case CHAR:
-    entry->value.char_value = value_str[0];
-    break;
-  default:
-    return false;
-  }
-  entry->has_value = true;
-  return true;
-}
+// ... (o resto do arquivo symbol_table.c pode permanecer o mesmo) ...
 
 void print_symbol_table() {
-  printf("=== Tabela de Simbolos ===\n");
+  printf("\n=== Tabela de Simbolos ===\n");
   printf("%-20s %-15s %-15s %-10s %-8s %-8s\n", "Lexema", "Tipo Token",
          "Tipo Dado", "Valor", "Linha", "Coluna");
   printf(
-      "------------------------------------------------------------------\n");
+      "------------------------------------------------------------------------\n");
   for (int i = 0; i < symbol_table.size; i++) {
     SymbolEntry *entry = &symbol_table.entries[i];
     printf("%-20s ", entry->lexeme);
@@ -89,24 +76,34 @@ void print_symbol_table() {
       printf("%-15s ", "Numero");
       break;
     default:
+      printf("%-15s ", "N/A");
       break;
     }
+    
+    // Imprime o tipo do dado (mesmo sem valor)
+    switch(entry->data_type) {
+        case INT: printf("%-15s ", "Int"); break;
+        case FLOAT: printf("%-15s ", "Float"); break;
+        case CHAR: printf("%-15s ", "Char"); break;
+        case UNDEFINED: printf("%-15s ", "Indefinido"); break;
+    }
+
     if (entry->has_value) {
       switch (entry->data_type) {
       case INT:
-        printf("%-15s %-10d ", "Int", entry->value.int_value);
+        printf("%-10d ", entry->value.int_value);
         break;
       case FLOAT:
-        printf("%-15s %-10.2f ", "Float", entry->value.float_value);
+        printf("%-10.2f ", entry->value.float_value);
         break;
       case CHAR:
-        printf("%-15s %-10c ", "Char", entry->value.char_value);
+        printf("%-10c ", entry->value.char_value);
         break;
       default:
-        printf("%-15s %-10s ", "N/A", "N/A");
+        printf("%-10s ", "N/A");
       }
     } else {
-      printf("%-15s %-10s ", "N/A", "N/A");
+      printf("%-10s ", "N/A");
     }
     printf("%-8d %-8d\n", entry->line, entry->column);
   }

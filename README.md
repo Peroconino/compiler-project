@@ -3,11 +3,11 @@
 - Compile the c files:
 
 ```bash
-    gcc -o output_filename lexer.c main.c
+    gcc main.c lexer.c symbol_table.c procedures.c ast.c -o compilador
 ```
 
 - Execute
 
 ```bash
-    ./output_filename
+    ./compilador
 ```

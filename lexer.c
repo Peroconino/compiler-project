@@ -1,482 +1,282 @@
 #include "lexer.h"
+#include "symbol_table.h"
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct {
-  char buffer1[BUFFER_SIZE], buffer2[BUFFER_SIZE], *current_buffer, lookahead;
-  int ini, prox, line, column;
-  bool eof, has_lookahead;
-  FILE *file;
-} State;
+// Inicializa a variável global do estado do lexer
+LexerState state;
 
-// globals
-State state;
+// Tabela de palavras-chave
+const KeywordEntry keyword_table[] = {
+    {"caso", IF},       {"entao", THEN},    {"senao", ELSE},
+    {"enquanto", WHILE},  {"faca", DO},      {"repita", REPEAT},
+    {"ate", UNTIL},     {"main", MAIN},     {"inicio", BEGIN},
+    {"fim", END},       {"int", TYPE_INT},   {"char", TYPE_CHAR},
+    {"float", TYPE_FLOAT}, {NULL, 0}};
 
-// Tabela de transições para o autômato
-const int transitionTable[35][20] = {
-    // letra_, digito, ., =, >, <, +, -, *, /, ^, (, ), ,, ;,
-    // !, ', EOF, ws\n\t, ->
-    {16, 18, 31, 2, 3, 6, 11, 12, 13, 14, 15, 28, 27, 30, 29, 9, 32, 33,
-     34}, // Estado inicial 1
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 2 '=': RELOP, EQ
-    {5, 5, 5, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5}, // Estado 3 '>?':
-    {-1, -1, -1, 4, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 4 '>=': RELOP, GE
-    {-1, -1, -1, 4, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 5 '>': RELOP, GT
-    {8, 8, 8, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}, // Estado 6 '<?':
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 7 '<=': RELOP, LE
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 8 '<': RELOP, LT
-    {-1, -1, -1, 10, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 9 '!?':
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 10 '!=': RELOP, NE
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     34}, // Estado 11 '+': TOKEN_OPERATOR, SUM
-    {-1, -1, -1, -1, 34, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     34}, // Estado 12 '-': TOKEN_OPERATOR, SUB
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     34}, // Estado 13 '*': TOKEN_OPERATOR, MUL
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     34}, // Estado 14 '/': TOKEN_OPERATOR, DIV
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     34}, // Estado 15 '^': TOKEN_OPERATOR, EXP
-    {16, 16, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17,
-     17}, // Estado 16 'letra_ + digito':
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 17 'letra_ + digito': TOKEN_ID
-    {19, 18, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
-     19}, // Estado 18 'digito + ?':
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 19 'digito': TOKEN_NUMBER,
-          // INT
-    {-1, 21, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 20 'digito.?':
-    {23, 21, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22,
-     22}, // Estado 21 'digito.digito?':
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 22 'digito.digito':
-          // TOKEN_NUMBER, FLOAT
-    {-1, -1, -1, -1, -1, -1, 24, 24, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 23 'digito.digitoE[+-]?':
-    {-1, 24, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 24
-          // 'digito.digitoE[+-]digito':
-    {26, 24, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26,
-     26}, // Estado 25
-          // 'digito.digitoE[+-]digito':
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 26
-          // 'digito.digitoE[+-]digito':
-          // TOKEN_NUMBER, FLOAT
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 27 ')': TOKEN_OPERATOR,
-          // PARDIR
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 28 '(': TOKEN_OPERATOR,
-          // PARESQ
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 29 ';': TOKEN_PONTUACTION,
-          // END_EXP
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 30 ',': TOKEN_PONTUACTION,
-          // MUL_VARS
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // Estado 31'.': TOKEN_PONTUACTION,
-          // DOT
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // estado 32'': TOKEN_EOF, 
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // estado 33: TOKEN_PONTUACTION, APOSTROPHE
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     -1}, // estado 34' \t\n': TOKEN_WHITESPACE
-    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 34,
-     -1}, // estado 35'->': TOKEN_OPERATOR,
-          // ASSIGMENT
-};
+// --- Funções Auxiliares ---
 
-int estado_inicial() { return 1; }
+// Inicializa o estado do lexer e carrega o arquivo na memória
+void init_lexer(FILE *file) {
+  fseek(file, 0, SEEK_END);
+  state.buffer_size = ftell(file);
+  fseek(file, 0, SEEK_SET);
 
-int final(int state) {
-  return (state == -1 || state == 2 || state == 4 || state == 5 || state == 7 ||
-          state == 8 || state == 10 || state == 11 || state == 13 ||
-          state == 14 || state == 15 || state == 17 || state == 19 ||
-          state == 22 || state == 24 || state == 26 || state == 27 ||
-          state == 28 || state == 29 || state == 30 || state == 31 ||
-          state == 32 || state == 33 || state == 34);
-}
+  state.source_buffer = (char *)malloc(state.buffer_size + 1);
+  fread(state.source_buffer, 1, state.buffer_size, file);
+  state.source_buffer[state.buffer_size] = EOF;
 
-void load_buffer(char *buffer) {
-  int buffer_len = fread(buffer, sizeof(char), BUFFER_SIZE, state.file);
-  if (buffer_len < BUFFER_SIZE) {
-    buffer[buffer_len] = EOF;
-    if (buffer_len == 0)
-      state.eof = true;
-  }
-}
-
-void init_state(FILE *file) {
   state.file = file;
+  state.current_pos = 0;
   state.line = 1;
   state.column = 1;
-  state.ini = 0;
-  state.prox = 0;
-  state.eof = false;
-  state.has_lookahead = false;
-  load_buffer(state.buffer1);
-  load_buffer(state.buffer2);
-  state.current_buffer = state.buffer1;
 }
 
-char prox_char() {
-  if (state.has_lookahead) {
-    state.has_lookahead = false;
-    return state.lookahead;
+// Retorna o caractere atual e avança o ponteiro
+static char advance() {
+  if (state.current_pos >= state.buffer_size) {
+    return EOF;
   }
-
-  // Verifica se precisa trocar de buffer
-  if (state.prox >= BUFFER_SIZE) {
-    if (state.current_buffer == state.buffer1) {
-      state.current_buffer = state.buffer2;
-      // Carrega o próximo bloco no buffer1 (assíncrono seria ideal)
-      if (!state.eof)
-        load_buffer(state.buffer1);
-    } else {
-      state.current_buffer = state.buffer1;
-      // Carrega o próximo bloco no buffer2
-      if (!state.eof)
-        load_buffer(state.buffer2);
-    }
-    state.prox = 0;
-  }
-
-  char c = state.current_buffer[state.prox];
-  state.prox++;
-
-  // Contagem de linhas
+  char c = state.source_buffer[state.current_pos++];
   if (c == '\n') {
     state.line++;
     state.column = 1;
   } else {
     state.column++;
   }
-
   return c;
 }
 
-char peek_char() {
-  if (state.has_lookahead) {
-    return state.lookahead;
+// Retorna o caractere atual sem avançar (lookahead)
+static char peek() {
+  if (state.current_pos >= state.buffer_size) {
+    return EOF;
   }
-
-  state.lookahead = prox_char();
-  state.has_lookahead = true;
-  return state.lookahead;
+  return state.source_buffer[state.current_pos];
 }
 
-const KeywordEntry keyword_table[] = {
-    {"caso", IF},      {"entao", THEN},    {"senao", ELSE}, {"enquanto", WHILE},
-    {"faca", DO},      {"repita", REPEAT}, {"ate", UNTIL},  {"main", MAIN},
-    {"inicio", BEGIN}, {"fim", END},       {NULL, -1},
-};
-
-Keyword get_keyword_type(const char *lexeme) {
-  for (int i = 0; keyword_table[i].value != NULL; i++) {
-    if (strcmp(lexeme, keyword_table[i].value) == 0) {
-      return keyword_table[i].keyword;
-    }
+// Retorna o próximo caractere sem avançar
+static char peek_next() {
+  if (state.current_pos + 1 >= state.buffer_size) {
+    return EOF;
   }
-
-  return -1;
+  return state.source_buffer[state.current_pos + 1];
 }
 
-// Determina o tipo de token baseado no estado final
-Token *acoes(int s) {
-  Token *token = malloc(sizeof(Token));
-  // Inicializa union enums com -1, indicando que não foi preenchido
-  token->error = UNDEFINED;
-  int lexeme_len = state.prox - state.ini;
-  strncpy(token->value, &state.current_buffer[state.ini], lexeme_len);
-  token->value[lexeme_len] = '\0';
+// Cria um novo token
+static Token *make_token(TokenType type) {
+  Token *token = (Token *)malloc(sizeof(Token));
+  token->type = type;
+  token->line = state.line;
+  
+  int current_line_start = state.token_start_pos;
+  while(current_line_start > 0 && state.source_buffer[current_line_start-1] != '\n') {
+      current_line_start--;
+  }
+  token->column = state.token_start_pos - current_line_start + 1;
 
-  switch (s) {
-  case 2:
-    token->type = TOKEN_RELOP;
-    token->relop = EQ;
-    break;
-  case 4:
-    token->type = TOKEN_RELOP;
-    token->relop = GE;
-    break;
-  case 5:
-    if (token->value[1] != '=') { // lookahead
-      token->type = TOKEN_RELOP;
-      token->relop = GT;
-      state.prox--;
-      state.column--;
-      token->value[1] = '\0';
-    }
-    break;
-  case 7:
-    if (token->value[1] != '=') { // lookahead
-      token->type = TOKEN_RELOP;
-      token->relop = LE;
-      state.prox--;
-      state.column--;
-      token->value[1] = '\0';
-    }
-    break;
-  case 8:
-    token->type = TOKEN_RELOP;
-    token->relop = LT;
-    break;
-  case 10:
-    if (token->value[1] != '=') { // lookahead
-      token->type = TOKEN_RELOP;
-      token->relop = NE;
-      state.prox--;
-      state.column--;
-      token->value[1] = '\0';
-    }
-    break;
-  case 11:
-    token->type = TOKEN_OPERATOR;
-    token->operador = SUM;
-    break;
-  case 12:
-    if (token->value[1] == '>') {
-      token->type = TOKEN_PUNCTUATION;
-      token->pontuacao = ASSIGMENT;
+
+  int length = state.current_pos - state.token_start_pos;
+  if (length >= MAX_LEXEME_LENGTH) {
+      length = MAX_LEXEME_LENGTH - 1;
+  }
+  strncpy(token->value, &state.source_buffer[state.token_start_pos], length);
+  token->value[length] = '\0';
+  return token;
+}
+
+
+// Ignora espaços em branco e comentários
+static void skip_whitespace_and_comments() {
+  while (1) {
+    char c = peek();
+    if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+      advance();
+    } else if (c == '/' && peek_next() == '*') {
+      advance(); 
+      advance(); 
+      while (!(peek() == '*' && peek_next() == '/') && peek() != EOF) {
+        advance();
+      }
+      if (peek() != EOF) {
+        advance(); 
+        advance(); 
+      }
     } else {
-      token->type = TOKEN_OPERATOR;
-      token->operador = SUB;
-    }
-    break;
-  case 13:
-    token->type = TOKEN_OPERATOR;
-    token->operador = MULT;
-    break;
-  case 14:
-    token->type = TOKEN_OPERATOR;
-    token->operador = DIV;
-    break;
-  case 15:
-    token->type = TOKEN_OPERATOR;
-    token->operador = EXP;
-    break;
-  case 17:
-    if (!isdigit(token->value[lexeme_len - 1]) &&
-        !isalpha(token->value[lexeme_len - 1])) {
-      token->value[lexeme_len - 1] = '\0';
-      state.prox--;
-      state.column--;
-    }
-    token->type = TOKEN_ID;
-    Keyword palavra_chave = get_keyword_type(token->value);
-
-    if (palavra_chave != -1) {
-      token->type = TOKEN_KEYWORD;
-      token->keyword = palavra_chave;
       break;
     }
+  }
+}
 
-    // TODO  colocar na tabela de simbolos se nao existir
-    break;
-  case 19:
-    token->type = TOKEN_NUMBER;
-    token->numberType = INT;
-    // TODO colocar na tabela de simbolos se nao existir
-    break;
-  case 22:
-    token->type = TOKEN_NUMBER;
-    token->numberType = FLOAT;
-    // TODO colocar na tabela de simbolos se nao existir
-    break;
-  case 26: // com notacao cientifica
-    token->type = TOKEN_NUMBER;
-    token->numberType = FLOAT;
-    // TODO colocar na tabela de simbolos se nao existir
-    break;
-  case 27:
-    token->type = TOKEN_OPERATOR;
-    token->operador = PARDIR;
-    break;
-  case 28:
-    token->type = TOKEN_OPERATOR;
-    token->operador = PARESQ;
-    break;
-  case 29:
-    token->type = TOKEN_PUNCTUATION;
-    token->pontuacao = END_EXP;
-    break;
-  case 30:
-    token->type = TOKEN_PUNCTUATION;
-    token->pontuacao = MUL_VARS;
-    break;
-  case 31:
-    token->type = TOKEN_PUNCTUATION;
-    token->pontuacao = DOT;
-    break;
-  case 32:
-    token->type = TOKEN_PUNCTUATION;
-    token->pontuacao = APOSTROPHE;
-    break;
-  case 33:
-    token->type = TOKEN_EOF;
-    break;
-  case 34:
-    token->type = TOKEN_PUNCTUATION;
-    token->pontuacao = ASSIGMENT;
-    break;
-  default:
-    token->type = TOKEN_ERROR;
-    token->error = UNKNOWN_TOKEN;
+// Processa um número (inteiro ou float)
+static Token *make_number() {
+  bool is_float = false;
+  while (isdigit(peek())) {
+    advance();
   }
 
-  if (token->type == TOKEN_NUMBER && !isdigit(token->value[lexeme_len - 1])) {
-    token->value[lexeme_len - 1] = '\0';
-    state.prox--;
-    state.column--;
+  if (peek() == '.' && isdigit(peek_next())) {
+    is_float = true;
+    advance(); 
+    while (isdigit(peek())) {
+      advance();
+    }
+  }
+  
+  if (toupper(peek()) == 'E' && (peek_next() == '+' || peek_next() == '-' || isdigit(peek_next()))) {
+      is_float = true;
+      advance(); 
+      if (peek() == '+' || peek() == '-') {
+          advance();
+      }
+      while(isdigit(peek())) {
+          advance();
+      }
   }
 
-  token->line = state.line;
-  token->column = state.column;
+  Token *token = make_token(TOKEN_NUMBER);
+  token->numberType = is_float ? FLOAT : INT;
+
+  if (lookup_symbol(token->value) == NULL) {
+    insert_symbol(token->value, TOKEN_NUMBER, token->line, token->column);
+  }
 
   return token;
 }
 
-// Função para classificar um caractere
-int getCharClass(char c) {
-  if (isalpha(c) || c == '_')
-    return 0; // Letra_
-  if (isdigit(c))
-    return 1; // Dígito
-  // Relop
-  if (strchr("><=!", c)) {
-    if (strchr(">", c)) {
-      return 4;
-    } else if (strchr("<", c)) {
-      return 5;
-    } else if (strchr("=", c)) {
-      return 3;
-    } else if (strchr("!", c)) {
-      return 15;
-    }
-  }
-  // Operators
-  if (strchr("+-*/^()", c)) {
-    if (strchr("+", c)) {
-      return 6;
-    } else if (strchr("-", c)) {
-      return 7;
-    } else if (strchr("*", c)) {
-      return 8;
-    } else if (strchr("/", c)) {
-      return 9;
-    } else if (strchr("^", c)) {
-      return 10;
-    } else if (strchr("(", c)) {
-      return 11;
-    } else if (strchr(")", c)) {
-      return 12;
-    }
-  }
-  // Punctations
-  if (strchr(".;,'", c)) {
-    if (strchr(".", c)) {
-      return 2;
-    } else if (strchr(";", c)) {
-      return 14;
-    } else if (strchr(",", c)) {
-      return 13;
-    } else if (strchr("'", c)) {
-      return 16;
-    }
-  }
-  // whitespaces
-  if (strchr(" \n\t", c)) {
-    return 18;
+// Processa um identificador ou palavra-chave
+static Token *make_identifier() {
+  while (isalnum(peek()) || peek() == '_') {
+    advance();
   }
 
-  if (c == EOF) {
-    return 17;
+  Token *token = make_token(TOKEN_ID);
+
+  for (int i = 0; keyword_table[i].value != NULL; i++) {
+    if (strcmp(token->value, keyword_table[i].value) == 0) {
+      token->type = TOKEN_KEYWORD;
+      token->keyword = keyword_table[i].keyword;
+      return token;
+    }
   }
 
-  return -1; // erro
+  if (lookup_symbol(token->value) == NULL) {
+    insert_symbol(token->value, TOKEN_ID, token->line, token->column);
+  }
+
+  return token;
 }
 
-int move(int state, char c) {
-  int charClass = getCharClass(c);
-  if (state < 1 || state > 36)
-    return -1; // Estado invalido
-  return transitionTable[state - 1][charClass];
-}
-
-void ignore_spaces_and_comentaries() {
-  while (1) {
-    char c = peek_char(); // Olha o próximo caractere sem consumir
-
-    // Pula espaços, tabs e quebras de linha
-    if (c == ' ' || c == '\t' || c == '\n') {
-      prox_char();            // Consome o caractere
-      state.ini = state.prox; // Atualiza o início do token
-      if (c == '\n') {
-        state.line++;
-        state.column = 1;
-      } else {
-        state.column++;
-      }
-      continue;
-    }
-
-    // Trata comentários de bloco (/* ... */)
-    if (c == '/' && peek_char() == '*') {
-      prox_char();            // Consome '/'
-      prox_char();            // Consome '*'
-      state.ini = state.prox; // Atualiza o início do token
-
-      while (1) {
-        c = prox_char();
-        if (c == EOF)
-          break;
-        if (c == '\n') {
-          state.line++;
-          state.column = 1;
-        }
-        if (c == '*' && peek_char() == '/') {
-          prox_char();            // Consome '/'
-          state.ini = state.prox; // Atualiza o início do token
-          break;
-        }
-      }
-      continue;
-    }
-
-    break; // Encontrou um caractere significativo
-  }
-}
-// Função principal do analisador léxico
+// Função Principal do Analisador Léxico
 Token *getNextToken() {
-  ignore_spaces_and_comentaries();
+  skip_whitespace_and_comments();
 
-  int s = estado_inicial();
-  char c;
-  if (state.has_lookahead)
-    state.ini = state.prox - 1;
-  else
-    state.ini = state.prox;
+  state.token_start_pos = state.current_pos;
+  state.token_start_col = state.column;
 
-  while (!final(s)) {
-    c = prox_char();
-    s = move(s, c);
+  char c = advance();
+
+  if (c == EOF) return make_token(TOKEN_EOF);
+  if (isalpha(c) || c == '_') return make_identifier();
+  if (isdigit(c)) return make_number();
+
+  Token* token;
+
+  switch (c) {
+    case '(': token = make_token(TOKEN_OPERATOR); token->operador = PARESQ; return token;
+    case ')': token = make_token(TOKEN_OPERATOR); token->operador = PARDIR; return token;
+    case '+': token = make_token(TOKEN_OPERATOR); token->operador = SUM; return token;
+    case '*': token = make_token(TOKEN_OPERATOR); token->operador = MULT; return token;
+    case '/': token = make_token(TOKEN_OPERATOR); token->operador = DIV; return token;
+    case '^': token = make_token(TOKEN_OPERATOR); token->operador = EXP; return token;
+    
+    case ';': token = make_token(TOKEN_PUNCTUATION); token->pontuacao = END_EXP; return token;
+    case ',': token = make_token(TOKEN_PUNCTUATION); token->pontuacao = MUL_VARS; return token;
+    
+    // CORREÇÃO: Trata o literal de char corretamente
+    case '\'': {
+        state.token_start_pos = state.current_pos; // Marca o início do conteúdo do char
+        char char_val = advance(); // Lê o caractere
+        if (peek() == '\'') {
+            advance(); // Consome o apóstrofo de fechamento
+            // Cria um token do tipo número, subtipo char
+            Token* char_token = make_token(TOKEN_NUMBER);
+            char_token->numberType = CHAR;
+            char_token->value[0] = char_val; // Armazena o caractere diretamente
+            char_token->value[1] = '\0';
+            if (lookup_symbol(char_token->value) == NULL) {
+                insert_symbol(char_token->value, TOKEN_NUMBER, char_token->line, char_token->column);
+                set_symbol_type(char_token->value, CHAR); // Define o tipo como CHAR
+            }
+            return char_token;
+        } else {
+            // Erro: literal de char com múltiplos caracteres ou não fechado
+            Token *err_token = make_token(TOKEN_ERROR);
+            err_token->error = UNKNOWN_TOKEN; // Simplificado como token desconhecido
+            while (peek() != '\'' && peek() != '\n' && peek() != EOF) advance();
+            if (peek() == '\'') advance();
+            printf("Erro Lexico (Linha %d, Coluna %d): Literal de char invalido\n", state.line, state.column);
+            return err_token;
+        }
+    }
+    
+    case '-':
+        if (peek() == '>') {
+            advance();
+            token = make_token(TOKEN_PUNCTUATION);
+            token->pontuacao = DECLARATION;
+        } else {
+            token = make_token(TOKEN_OPERATOR);
+            token->operador = SUB;
+        }
+        return token;
+    
+    case '=':
+        if (peek() == '=') {
+            advance();
+            token = make_token(TOKEN_RELOP);
+            token->relop = EQ;
+        } else {
+            token = make_token(TOKEN_OPERATOR);
+            token->operador = ASSIGN;
+        }
+        return token;
+    
+    case '>':
+        token = make_token(TOKEN_RELOP);
+        if (peek() == '=') {
+            advance();
+            token->relop = GE;
+        } else {
+            token->relop = GT;
+        }
+        return token;
+
+    case '<':
+        token = make_token(TOKEN_RELOP);
+        if (peek() == '=') {
+            advance();
+            token->relop = LE;
+        } else {
+            token->relop = LT;
+        }
+        return token;
+
+    case '!':
+        if (peek() == '=') {
+            advance();
+            token = make_token(TOKEN_RELOP);
+            token->relop = NE;
+            return token;
+        }
+        break; 
   }
 
-  // Executar acoes dos estados finais ou tratar erros
-  return acoes(s);
+  // Se chegou aqui, é um token desconhecido
+  Token *err_token = make_token(TOKEN_ERROR);
+  err_token->error = UNKNOWN_TOKEN;
+  return err_token;
 }

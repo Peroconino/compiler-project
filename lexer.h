@@ -1,7 +1,6 @@
 #ifndef LEXER_H
 #define LEXER_H
 #include <stdio.h>
-#define ARQUIVO "entrada.txt"
 #define MAX_LEXEME_LENGTH 50
 #define BUFFER_SIZE 4096
 
@@ -16,38 +15,26 @@ typedef enum {
   TOKEN_RELOP,
 } TokenType;
 
-typedef enum {
-  GT,
-  LT,
-  LE,
-  EQ,
-  NE,
-  GE,
-} Relop;
+typedef enum { GT, LT, LE, EQ, NE, GE } Relop;
 
 typedef enum {
-  SUM,
-  SUB,
-  MULT,
-  DIV,
-  EXP,
-  PARESQ,
-  PARDIR,
+  SUM,      // +
+  SUB,      // -
+  MULT,     // *
+  DIV,      // /
+  EXP,      // ^
+  PARESQ,   // (
+  PARDIR,   // )
+  ASSIGN,   // =
 } Operator;
 
-typedef enum {
-  CHAR,
-  INT,
-  FLOAT,
-} Type;
+typedef enum { CHAR, INT, FLOAT, UNDEFINED } Type;
 
 typedef enum {
-  ASSIGMENT,
-  MUL_VARS,
-  END_EXP,
-  DECLARATION,
-  APOSTROPHE,
-  DOT,
+  MUL_VARS,    // ,
+  END_EXP,     // ;
+  DECLARATION, // ->
+  APOSTROPHE,  // '
 } Punctuation;
 
 typedef enum {
@@ -61,15 +48,15 @@ typedef enum {
   END,
   REPEAT,
   UNTIL,
+  // Adicionadas as palavras-chave de tipo
+  TYPE_INT,
+  TYPE_CHAR,
+  TYPE_FLOAT
 } Keyword;
 
 typedef enum {
-  UNDEFINED = -1,
+  ERROR_UNDEFINED = -1,
   UNCLOSED_COMMENT,
-  INVALID_TOKEN_AFTER_EXCLAMATION,
-  FRACTION_ENDED_WITH_A_DOT,
-  ENDED_WITH_E_EXPOENT,
-  ENDED_AFTER_EXPOENT_SIGN,
   UNKNOWN_TOKEN,
 } ErrorKind;
 
@@ -93,19 +80,20 @@ typedef struct {
   Keyword keyword;
 } KeywordEntry;
 
-Token *proximo_token(FILE *file);
-int reload_buffer(FILE *file);
-int estado_inicial();
-int final(int state);
-void load_buffer(char *buffer);
-void init_state(FILE *file);
-char prox_char();
-char peek_char();
-Keyword get_keyword_type(const char *lexeme);
-Token *acoes(int s);
-int getCharClass(char c);
-int move(int state, char c);
-void ignore_spaces_and_comentaries();
+typedef struct {
+  FILE *file;
+  char *source_buffer;
+  int buffer_size;
+  int current_pos;
+  int line;
+  int column;
+  int token_start_pos;
+  int token_start_col;
+} LexerState;
+
+extern LexerState state;
+
+void init_lexer(FILE *file);
 Token *getNextToken();
 
 #endif
