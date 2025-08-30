@@ -108,4 +108,17 @@ int move(int state, char c);
 void ignore_spaces_and_comentaries();
 Token *getNextToken();
 
+#include "ast.h" 
+
+struct ASTNode* procedimento_programa();
+struct ASTNode* procedimento_bloco();
+struct ASTNode* procedimento_decl_vars();
+struct ASTNode* procedimento_lista_decl();
+struct ASTNode* procedimento_decl_var();
+struct ASTNode* procedimento_lista_ids();
+struct ASTNode* procedimento_tipo();
+struct ASTNode* procedimento_seq_comandos();
+
+
+
 #endif
