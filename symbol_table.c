@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h> // Adicionado para corrigir o aviso sobre isprint
+#include <ctype.h>
 
 SymbolTable symbol_table;
 
@@ -21,15 +21,13 @@ SymbolEntry *insert_symbol(const char *lexeme, TokenType type, int line,
   entry->has_value = false;
   entry->line = line;
   entry->column = column;
-  entry->data_type = UNDEFINED; // Inicializa como indefinido
+  entry->data_type = UNDEFINED;
 
-  // Se for um número, já define o tipo e valor
   if (type == TOKEN_NUMBER) {
     if (strchr(lexeme, '.') || strchr(lexeme, 'e') || strchr(lexeme, 'E')) {
       entry->value.float_value = atof(lexeme);
       entry->data_type = FLOAT;
     } else if (strlen(lexeme) == 1 && isprint(lexeme[0]) && !isdigit(lexeme[0])) {
-      // Trata como CHAR apenas se for um caractere imprimível que não seja um dígito
       entry->value.char_value = lexeme[0];
       entry->data_type = CHAR;
     } else {
@@ -57,8 +55,6 @@ void set_symbol_type(const char *lexeme, Type type) {
   }
 }
 
-// ... (o resto do arquivo symbol_table.c pode permanecer o mesmo) ...
-
 void print_symbol_table() {
   printf("\n=== Tabela de Simbolos ===\n");
   printf("%-20s %-15s %-15s %-10s %-8s %-8s\n", "Lexema", "Tipo Token",
@@ -80,7 +76,6 @@ void print_symbol_table() {
       break;
     }
     
-    // Imprime o tipo do dado (mesmo sem valor)
     switch(entry->data_type) {
         case INT: printf("%-15s ", "Int"); break;
         case FLOAT: printf("%-15s ", "Float"); break;

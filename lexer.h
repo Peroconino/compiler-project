@@ -18,23 +18,23 @@ typedef enum {
 typedef enum { GT, LT, LE, EQ, NE, GE } Relop;
 
 typedef enum {
-  SUM,      // +
-  SUB,      // -
-  MULT,     // *
-  DIV,      // /
-  EXP,      // ^
-  PARESQ,   // (
-  PARDIR,   // )
-  ASSIGN,   // =
+  SUM,
+  SUB,
+  MULT,
+  DIV,
+  EXP,
+  PARESQ,
+  PARDIR,
+  ASSIGN,
 } Operator;
 
 typedef enum { CHAR, INT, FLOAT, UNDEFINED } Type;
 
 typedef enum {
-  MUL_VARS,    // ,
-  END_EXP,     // ;
-  DECLARATION, // ->
-  APOSTROPHE,  // '
+  MUL_VARS,
+  END_EXP,
+  DECLARATION,
+  APOSTROPHE,
 } Punctuation;
 
 typedef enum {
@@ -48,7 +48,6 @@ typedef enum {
   END,
   REPEAT,
   UNTIL,
-  // Adicionadas as palavras-chave de tipo
   TYPE_INT,
   TYPE_CHAR,
   TYPE_FLOAT

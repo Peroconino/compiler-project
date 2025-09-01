@@ -6,16 +6,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// --- Estrutura do Parser com Lookahead ---
 static Token *currentToken;
-static Token *lookaheadToken = NULL; // Buffer para um token de lookahead
+static Token *lookaheadToken = NULL; 
 
-// Definição da variável global de erro
 bool hasError = false;
 
 static ASTNode* current_ast = NULL;
 
-// --- Protótipos das Funções ---
 ASTNode* procedimento_programa();
 ASTNode* procedimento_bloco();
 ASTNode* procedimento_decl_vars_linha();
@@ -26,9 +23,6 @@ ASTNode* procedimento_selecao();
 ASTNode* procedimento_corpo();
 ASTNode* procedimento_expr();
 
-// --- Funções de Controle de Token ---
-
-// Avança para o próximo token, usando o buffer de lookahead se não estiver vazio
 void consume_token() {
   if (hasError) return;
   
@@ -42,7 +36,6 @@ void consume_token() {
   }
 }
 
-// Espia o próximo token sem consumi-lo
 Token* peek_ahead() {
     if (lookaheadToken == NULL) {
         lookaheadToken = getNextToken();
@@ -50,10 +43,6 @@ Token* peek_ahead() {
     return lookaheadToken;
 }
 
-
-// --- Funções de Controle e Erro ---
-
-// Modifica a função de erro para incluir mais contexto
 void syntax_error(const char *expected) {
     if (!hasError) {
         printf("Erro Sintatico (Linha %d, Coluna %d):\n", currentToken->line, currentToken->column);
@@ -61,7 +50,6 @@ void syntax_error(const char *expected) {
         printf("  Encontrado: '%s'\n", currentToken->value);
         printf("  Contexto: ");
         
-        // Imprime o contexto da linha onde ocorreu o erro
         int pos = state.token_start_pos;
         while(pos > 0 && state.source_buffer[pos-1] != '\n') pos--;
         while(state.source_buffer[pos] != '\n' && state.source_buffer[pos] != '\0') {
@@ -152,21 +140,16 @@ void match(TokenType type, int sub_type) {
     }
 }
 
-// --- Implementação dos Procedimentos de Análise ---
-
-// expr -> ID | NUMERO | (expr) | expr op expr
 ASTNode* procedimento_expr() {
     if (hasError) return NULL;
     
     ASTNode* left = NULL;
     
-    // Trata (expr)
     if(currentToken->type == TOKEN_OPERATOR && currentToken->operador == PARESQ) {
         match(TOKEN_OPERATOR, PARESQ);
         left = procedimento_expr();
         match(TOKEN_OPERATOR, PARDIR);
     } 
-    // Trata operandos iniciais
     else if(currentToken->type == TOKEN_ID) {
         left = create_node(NODE_IDENTIFIER);
         left->data.identifier.name = strdup(currentToken->value);
@@ -175,14 +158,12 @@ ASTNode* procedimento_expr() {
     else if(currentToken->type == TOKEN_NUMBER) {
         left = create_node(NODE_NUMBER);
         left->data.number.number_type = currentToken->numberType;
-        // ... converter e armazenar o valor
         match(TOKEN_NUMBER, 0);
     } else {
         syntax_error("um identificador, numero, char ou '('");
         return NULL;
     }
     
-    // Trata operadores binários
     if(currentToken->type == TOKEN_RELOP || 
        (currentToken->type == TOKEN_OPERATOR && (
             currentToken->operador == SUM || currentToken->operador == SUB ||
@@ -205,7 +186,6 @@ ASTNode* procedimento_expr() {
     return left;
 }
 
-// atribuicao -> ID '=' expr ';'
 ASTNode* procedimento_atribuicao() {
     if (hasError) return NULL;
     
@@ -221,7 +201,6 @@ ASTNode* procedimento_atribuicao() {
     return node;
 }
 
-// corpo -> comando | bloco
 ASTNode* procedimento_corpo() {
     if (hasError) return NULL;
     
@@ -232,7 +211,6 @@ ASTNode* procedimento_corpo() {
     }
 }
 
-// selecao -> 'caso' '(' expr ')' 'entao' corpo ('senao' corpo)?
 ASTNode* procedimento_selecao() {
     if (hasError) return NULL;
     
@@ -255,7 +233,6 @@ ASTNode* procedimento_selecao() {
     return node;
 }
 
-// comando -> atribuicao | selecao
 ASTNode* procedimento_comando() {
     if (hasError) return NULL;
     
@@ -269,7 +246,6 @@ ASTNode* procedimento_comando() {
     return NULL;
 }
 
-// seq_comandos -> (comando)*
 ASTNode* procedimento_seq_comandos() {
     if (hasError) return NULL;
     
@@ -295,7 +271,6 @@ ASTNode* procedimento_seq_comandos() {
     return block;
 }
 
-// Analisa uma única linha de declaração de variáveis
 ASTNode* procedimento_decl_vars_linha() {
     if (hasError) return NULL;
 
@@ -303,19 +278,16 @@ ASTNode* procedimento_decl_vars_linha() {
     decl_node->data.declaration.identifiers = malloc(sizeof(char*) * 10);
     decl_node->data.declaration.id_count = 0;
 
-    // Verifica se começa com um identificador
     if (currentToken->type != TOKEN_ID) {
         syntax_error("um identificador");
         free_ast(decl_node);
         return NULL;
     }
 
-    // Guarda o primeiro identificador
     decl_node->data.declaration.identifiers[decl_node->data.declaration.id_count++] = 
         strdup(currentToken->value);
     match(TOKEN_ID, 0);
 
-    // Coleta outros identificadores se houver
     while(currentToken->type == TOKEN_PUNCTUATION && currentToken->pontuacao == MUL_VARS) {
         match(TOKEN_PUNCTUATION, MUL_VARS);
         if (currentToken->type != TOKEN_ID) {
@@ -330,7 +302,6 @@ ASTNode* procedimento_decl_vars_linha() {
     
     match(TOKEN_PUNCTUATION, DECLARATION);
 
-    // Define o tipo das variáveis
     if (currentToken->type == TOKEN_KEYWORD) {
         switch(currentToken->keyword) {
             case TYPE_INT: decl_node->data.declaration.var_type = INT; break;
@@ -343,7 +314,6 @@ ASTNode* procedimento_decl_vars_linha() {
         }
         match(TOKEN_KEYWORD, currentToken->keyword);
 
-        // Atualiza a tabela de símbolos
         for(int i = 0; i < decl_node->data.declaration.id_count; i++) {
             set_symbol_type(decl_node->data.declaration.identifiers[i], 
                           decl_node->data.declaration.var_type);
@@ -354,7 +324,6 @@ ASTNode* procedimento_decl_vars_linha() {
     return decl_node;
 }
 
-// bloco -> 'inicio' decl_vars seq_comandos 'fim'
 ASTNode* procedimento_bloco() {
     if (hasError) return NULL;
     
@@ -366,7 +335,6 @@ ASTNode* procedimento_bloco() {
     block_node->data.block.commands = malloc(sizeof(ASTNode*) * 100);
     block_node->data.block.cmd_count = 0;
 
-    // Seção de declarações (opcional)
     while (currentToken->type == TOKEN_ID) {
         Token *next = peek_ahead();
         if (next->type == TOKEN_PUNCTUATION && 
@@ -380,10 +348,8 @@ ASTNode* procedimento_bloco() {
         }
     }
 
-    // Seção de comandos
     ASTNode* commands = procedimento_seq_comandos();
     if (commands) {
-        // Transfere os comandos do nó temporário para o bloco
         for(int i = 0; i < commands->data.block.cmd_count; i++) {
             block_node->data.block.commands[block_node->data.block.cmd_count++] = 
                 commands->data.block.commands[i];
@@ -396,7 +362,6 @@ ASTNode* procedimento_bloco() {
     return block_node;
 }
 
-// programa -> 'main' ID '()' bloco
 ASTNode* procedimento_programa() {
     consume_token();
     
@@ -413,10 +378,9 @@ ASTNode* procedimento_programa() {
     
     if (!hasError) {
         printf("\nAnalise Sintatica concluida com sucesso!\n");
-        // Aqui você pode adicionar funções para imprimir ou processar a árvore
     }
     
     if(currentToken) free(currentToken);
     if(lookaheadToken) free(lookaheadToken);
-    return program_node; // Retorna a AST gerada
+    return program_node;
 }

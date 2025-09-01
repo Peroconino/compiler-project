@@ -6,10 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Inicializa a variável global do estado do lexer
 LexerState state;
 
-// Tabela de palavras-chave
 const KeywordEntry keyword_table[] = {
     {"caso", IF},       {"entao", THEN},    {"senao", ELSE},
     {"enquanto", WHILE},  {"faca", DO},      {"repita", REPEAT},
@@ -17,9 +15,6 @@ const KeywordEntry keyword_table[] = {
     {"fim", END},       {"int", TYPE_INT},   {"char", TYPE_CHAR},
     {"float", TYPE_FLOAT}, {NULL, 0}};
 
-// --- Funções Auxiliares ---
-
-// Inicializa o estado do lexer e carrega o arquivo na memória
 void init_lexer(FILE *file) {
   fseek(file, 0, SEEK_END);
   state.buffer_size = ftell(file);
@@ -35,7 +30,6 @@ void init_lexer(FILE *file) {
   state.column = 1;
 }
 
-// Retorna o caractere atual e avança o ponteiro
 static char advance() {
   if (state.current_pos >= state.buffer_size) {
     return EOF;
@@ -50,7 +44,6 @@ static char advance() {
   return c;
 }
 
-// Retorna o caractere atual sem avançar (lookahead)
 static char peek() {
   if (state.current_pos >= state.buffer_size) {
     return EOF;
@@ -58,7 +51,6 @@ static char peek() {
   return state.source_buffer[state.current_pos];
 }
 
-// Retorna o próximo caractere sem avançar
 static char peek_next() {
   if (state.current_pos + 1 >= state.buffer_size) {
     return EOF;
@@ -66,7 +58,6 @@ static char peek_next() {
   return state.source_buffer[state.current_pos + 1];
 }
 
-// Cria um novo token
 static Token *make_token(TokenType type) {
   Token *token = (Token *)malloc(sizeof(Token));
   token->type = type;
@@ -88,8 +79,6 @@ static Token *make_token(TokenType type) {
   return token;
 }
 
-
-// Ignora espaços em branco e comentários
 static void skip_whitespace_and_comments() {
   while (1) {
     char c = peek();
@@ -111,7 +100,6 @@ static void skip_whitespace_and_comments() {
   }
 }
 
-// Processa um número (inteiro ou float)
 static Token *make_number() {
   bool is_float = false;
   while (isdigit(peek())) {
@@ -147,7 +135,6 @@ static Token *make_number() {
   return token;
 }
 
-// Processa um identificador ou palavra-chave
 static Token *make_identifier() {
   while (isalnum(peek()) || peek() == '_') {
     advance();
@@ -196,26 +183,23 @@ Token *getNextToken() {
     case ';': token = make_token(TOKEN_PUNCTUATION); token->pontuacao = END_EXP; return token;
     case ',': token = make_token(TOKEN_PUNCTUATION); token->pontuacao = MUL_VARS; return token;
     
-    // CORREÇÃO: Trata o literal de char corretamente
     case '\'': {
-        state.token_start_pos = state.current_pos; // Marca o início do conteúdo do char
-        char char_val = advance(); // Lê o caractere
+        state.token_start_pos = state.current_pos; 
+        char char_val = advance(); 
         if (peek() == '\'') {
-            advance(); // Consome o apóstrofo de fechamento
-            // Cria um token do tipo número, subtipo char
+            advance(); 
             Token* char_token = make_token(TOKEN_NUMBER);
             char_token->numberType = CHAR;
-            char_token->value[0] = char_val; // Armazena o caractere diretamente
+            char_token->value[0] = char_val; 
             char_token->value[1] = '\0';
             if (lookup_symbol(char_token->value) == NULL) {
                 insert_symbol(char_token->value, TOKEN_NUMBER, char_token->line, char_token->column);
-                set_symbol_type(char_token->value, CHAR); // Define o tipo como CHAR
+                set_symbol_type(char_token->value, CHAR); 
             }
             return char_token;
         } else {
-            // Erro: literal de char com múltiplos caracteres ou não fechado
             Token *err_token = make_token(TOKEN_ERROR);
-            err_token->error = UNKNOWN_TOKEN; // Simplificado como token desconhecido
+            err_token->error = UNKNOWN_TOKEN;
             while (peek() != '\'' && peek() != '\n' && peek() != EOF) advance();
             if (peek() == '\'') advance();
             printf("Erro Lexico (Linha %d, Coluna %d): Literal de char invalido\n", state.line, state.column);
@@ -275,7 +259,6 @@ Token *getNextToken() {
         break; 
   }
 
-  // Se chegou aqui, é um token desconhecido
   Token *err_token = make_token(TOKEN_ERROR);
   err_token->error = UNKNOWN_TOKEN;
   return err_token;

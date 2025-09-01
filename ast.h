@@ -85,5 +85,6 @@ typedef struct ASTNode {
 
 ASTNode* create_node(NodeType type);
 void free_ast(ASTNode* node);
+void print_ast(ASTNode* node, int level);  // Adicionar este protótipo
 
 #endif

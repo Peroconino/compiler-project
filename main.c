@@ -1,13 +1,10 @@
 #include "lexer.h"
 #include "symbol_table.h"
-#include "ast.h" // Incluir o cabeçalho da AST
+#include "ast.h"
 #include <stdio.h>
 
 // Protótipo da função do parser
 ASTNode* procedimento_programa();
-
-// Protótipo da função para imprimir a AST
-void print_ast(ASTNode* node, int level);
 
 // Declaração da variável global de erro
 extern bool hasError;
